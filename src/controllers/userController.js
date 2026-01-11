@@ -1,3 +1,4 @@
+import NewsletterSubscribe from '../models/NewsletterSubscribe.js';
 import User from '../models/User.js';
 
 export const getUsers = async (req, res) => {
@@ -43,7 +44,7 @@ export const updateUser = async (req, res) => {
     const { name, email, newsletter_optin, role } = req.body;
     if (role && !isAdmin) return res.status(403).json({ error: 'Szerepkör módosítása csak adminnak engedélyezett' });
 
-    await user.update({ name, email, newsletter_optin, role });
+    await user.update({ name, email, NewsletterSubscribe, role });
     const sanitized = user.toJSON();
     delete sanitized.password;
     res.json(sanitized);

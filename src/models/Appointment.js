@@ -1,25 +1,51 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
-import User from './User.js';
-import Service from './Service.js';
 
 const Appointment = sequelize.define('Appointment', {
-  date: { type: DataTypes.DATE, allowNull: false },
-  status: { 
-    type: DataTypes.ENUM('booked', 'cancelled', 'completed'), 
-    defaultValue: 'booked' 
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
   },
-  appointment_time: { type: DataTypes.DATE, allowNull: false }
-}, {
-  timestamps: true
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  phone: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  serviceKey: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  serviceLabel: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  durationMinutes: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+
+  // ✅ ÚJ MEZŐ: szakember neve
+  staffName: {
+    type: DataTypes.STRING,
+    allowNull: true,       // lehet null, hogy a régi foglalások ne törjenek el
+    defaultValue: 'Nincs megadva'
+  },
+
+  date: {
+    type: DataTypes.DATEONLY,
+    allowNull: false
+  },
+  time: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  status: {
+    type: DataTypes.STRING,
+    defaultValue: 'pending'
+  }
 });
-
-// Users ⇔ Appointments
-User.hasMany(Appointment, { foreignKey: 'userId' });
-Appointment.belongsTo(User, { foreignKey: 'userId' });
-
-// Services ⇔ Appointments
-Service.hasMany(Appointment, { foreignKey: 'serviceId' });
-Appointment.belongsTo(Service, { foreignKey: 'serviceId' });
 
 export default Appointment;

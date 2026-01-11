@@ -4,7 +4,7 @@ import User from '../models/User.js';
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, confirmPassword, newsletter} = req.body;
+    const { name, email, password, confirmPassword, newsletter } = req.body;
 
     if (!name || !email || !password || !confirmPassword) {
       return res.status(400).json({ error: 'Minden mező kötelező' });
@@ -13,16 +13,17 @@ export const register = async (req, res) => {
     if (password !== confirmPassword) {
       return res.status(400).json({ error: 'A jelszavak nem egyeznek' });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     const existing = await User.findOne({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: 'Ez az email már regisztrálva van' });
     }
 
-    const user = await User.create({ 
-      name, 
-      email, 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
       password: hashedPassword,
       newsletter
     });
@@ -30,7 +31,15 @@ export const register = async (req, res) => {
     const sanitized = user.toJSON();
     delete sanitized.password;
 
-    return res.status(201).json(sanitized);
+    return res.status(201).json({
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  }
+});
+
 
   } catch (error) {
     console.error('Regisztrációs hiba:', error);
@@ -40,7 +49,8 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-const { name, email, password, newsletter } = req.body;
+    const { email, password } = req.body;
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Email és jelszó kötelező' });
     }
@@ -64,7 +74,12 @@ const { name, email, password, newsletter } = req.body;
 
     return res.json({
       token,
-      role: user.role
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
     });
 
   } catch (error) {
@@ -72,3 +87,4 @@ const { name, email, password, newsletter } = req.body;
     return res.status(500).json({ error: 'Bejelentkezés sikertelen' });
   }
 };
+
