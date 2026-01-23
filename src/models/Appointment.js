@@ -14,6 +14,10 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   serviceKey: {
     type: DataTypes.STRING,
     allowNull: false
@@ -26,14 +30,56 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-
-  // ✅ ÚJ MEZŐ: szakember neve
+  price: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  couponCode: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  discountAmount: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  finalPrice: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  depositAmount: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  paidAmount: {
+    type: DataTypes.FLOAT,
+    allowNull: true
+  },
+  paymentMethod: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  barionPaymentId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  barionPaymentRequestId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  paymentStatus: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'unpaid'
+  },
+  staffId: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   staffName: {
     type: DataTypes.STRING,
-    allowNull: true,       // lehet null, hogy a régi foglalások ne törjenek el
+    allowNull: true,
     defaultValue: 'Nincs megadva'
   },
-
   date: {
     type: DataTypes.DATEONLY,
     allowNull: false

@@ -13,19 +13,51 @@ const User = sequelize.define('User', {
     unique: true, 
     validate: { isEmail: true } 
   },
+  phone: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  addressZip: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  addressCity: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  addressStreet: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  addressHouseNumber: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  provider: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  providerId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   password: { 
     type: DataTypes.STRING, 
     allowNull: true, 
     validate: { len: [8, 100] } 
   },
-  role: { 
-    type: DataTypes.ENUM('user', 'admin'), 
-    defaultValue: 'user' 
+  role: {
+    type: DataTypes.ENUM('user', 'admin', 'staff'),
+    defaultValue: 'user'
   },
   newsletter: {
   type: DataTypes.BOOLEAN,
   defaultValue: false
-}
+},
+  active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  }
 
 }, {
   timestamps: true,

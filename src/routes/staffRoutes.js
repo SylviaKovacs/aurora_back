@@ -1,4 +1,6 @@
 import express from 'express';
+import auth from '../middleware/auth.js';
+import isAdmin from '../middleware/isAdmin.js';
 import {
   getAllStaff,
   createStaff,
@@ -9,8 +11,8 @@ import {
 const router = express.Router();
 
 router.get('/', getAllStaff);
-router.post('/', createStaff);
-router.put('/:id', updateStaff);
-router.delete('/:id', deleteStaff);
+router.post('/', auth, isAdmin, createStaff);
+router.put('/:id', auth, isAdmin, updateStaff);
+router.delete('/:id', auth, isAdmin, deleteStaff);
 
 export default router;

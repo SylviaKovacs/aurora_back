@@ -1,113 +1,85 @@
+import bcrypt from 'bcrypt';
 import sequelize from './src/config/db.js';
 import './src/models/User.js';
 import './src/models/Service.js';
-import './src/models/Product.js';
 import './src/models/Appointment.js';
-import './src/models/Order.js';
-import './src/models/OrderItem.js';
 
 async function seed() {
   try {
-    console.log("🌱 Seed futtatása...");
+    console.log('Seed futtatasa...');
 
-    // Idegen kulcsok kikapcsolása
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-
-    // Táblák újragenerálása
     await sequelize.sync({ force: true });
-
-    // Idegen kulcsok visszakapcsolása
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
 
-    console.log("✅ Adatbázis újragenerálva");
+    console.log('Adatbazis ujrageneralva');
 
-    // Admin user
+    const adminPassword = await bcrypt.hash('admin123', 10);
     const admin = await sequelize.models.User.create({
-      name: "Aurora Admin",
-      email: "admin@aurora.hu",
-      password: "admin123",
-      role: "admin"
+      name: 'Aurora Admin',
+      email: 'admin@aurora.hu',
+      password: adminPassword,
+      role: 'admin'
     });
-    console.log("✅ Admin user létrehozva");
+    console.log('Admin user letrehozva');
 
-    // Szolgáltatások
     const services = await sequelize.models.Service.bulkCreate([
-      { name: "Női hajvágás", price: 6500 },
-      { name: "Férfi hajvágás", price: 4500 },
-      { name: "Hajfestés", price: 15000 },
-      { name: "Melír", price: 13000 },
-      { name: "Manikűr", price: 8000 },
-      { name: "Gépi pedikűr", price: 9000 }
+      { name: 'Noi hajvagas', price: 6500, duration: 45 },
+      { name: 'Ferfi hajvagas', price: 4500, duration: 30 },
+      { name: 'Hajfestes', price: 15000, duration: 90 },
+      { name: 'Melir', price: 13000, duration: 120 },
+      { name: 'Manikur', price: 8000, duration: 45 },
+      { name: 'Gepi pedikur', price: 9000, duration: 60 }
     ]);
-    console.log("✅ Szolgáltatások feltöltve");
+    console.log('Szolgaltatasok feltoltve');
 
-    // Termékek
-    const products = await sequelize.models.Product.bulkCreate([
-      { name: "Professzionális sampon", price: 3200, stock: 30 },
-      { name: "Hajbalzsam", price: 3500, stock: 25 },
-      { name: "Hajvégápoló olaj", price: 4800, stock: 15 },
-      { name: "Körömlakk - piros", price: 1800, stock: 50 }
-    ]);
-    console.log("✅ Termékek feltöltve");
-
-    // ✅ IDŐPONTOK
     await sequelize.models.Appointment.bulkCreate([
       {
-        userId: admin.id,
-        serviceId: services[0].id,
-        date: "2025-01-15",
-        appointment_time: "2025-01-15 10:00:00",
-        status: "booked"
+        name: admin.name,
+        email: admin.email,
+        phone: '0600000000',
+        serviceKey: 'noi_hajvagas',
+        serviceLabel: services[0].name,
+        durationMinutes: services[0].duration,
+        price: services[0].price,
+        date: '2025-01-15',
+        time: '10:00',
+        staffName: 'Teszt Szakember',
+        status: 'booked'
       },
       {
-        userId: admin.id,
-        serviceId: services[2].id,
-        date: "2025-01-16",
-        appointment_time: "2025-01-16 14:00:00",
-        status: "completed"
+        name: admin.name,
+        email: admin.email,
+        phone: '0600000000',
+        serviceKey: 'hajfestes',
+        serviceLabel: services[2].name,
+        durationMinutes: services[2].duration,
+        price: services[2].price,
+        date: '2025-01-16',
+        time: '14:00',
+        staffName: 'Teszt Szakember',
+        status: 'completed'
       },
       {
-        userId: admin.id,
-        serviceId: services[4].id,
-        date: "2025-01-17",
-        appointment_time: "2025-01-17 09:30:00",
-        status: "cancelled"
+        name: admin.name,
+        email: admin.email,
+        phone: '0600000000',
+        serviceKey: 'manikur',
+        serviceLabel: services[4].name,
+        durationMinutes: services[4].duration,
+        price: services[4].price,
+        date: '2025-01-17',
+        time: '09:30',
+        staffName: 'Teszt Szakember',
+        status: 'cancelled'
       }
     ]);
-    console.log("✅ Időpontok feltöltve");
+    console.log('Idopontok feltoltve');
 
-    // ✅ RENDELÉSEK
-    const order1 = await sequelize.models.Order.create({
-      userId: admin.id,
-      productId: products[0].id,   // modelled miatt kell
-      quantity: 1,
-      totalPrice: 2 * products[0].price + products[1].price,
-      status: "paid"
-    });
-
-    // ✅ RENDELÉS TÉTELEK
-    await sequelize.models.OrderItem.bulkCreate([
-      {
-        orderId: order1.id,
-        productId: products[0].id,
-        quantity: 2,
-        price: products[0].price
-      },
-      {
-        orderId: order1.id,
-        productId: products[1].id,
-        quantity: 1,
-        price: products[1].price
-      }
-    ]);
-
-    console.log("✅ Rendelések és tételek feltöltve");
-
-    console.log("🌱 Seed teljesen kész!");
+    console.log('Seed kesz');
     process.exit(0);
-
   } catch (err) {
-    console.error("❌ Seed hiba:", err);
+    console.error('Seed hiba:', err);
     process.exit(1);
   }
 }

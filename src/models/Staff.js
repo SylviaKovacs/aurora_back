@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
+import User from './User.js';
 
 const Staff = sequelize.define('Staff', {
   name: {
@@ -18,6 +19,11 @@ const Staff = sequelize.define('Staff', {
     type: DataTypes.STRING, // URL vagy fájlnév
     allowNull: true
   },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    unique: true
+  },
   active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
@@ -25,5 +31,8 @@ const Staff = sequelize.define('Staff', {
 }, {
   timestamps: true
 });
+
+User.hasOne(Staff, { foreignKey: 'userId' });
+Staff.belongsTo(User, { foreignKey: 'userId' });
 
 export default Staff;
