@@ -1,4 +1,5 @@
-import ContactMessage from '../models/ContactMessage.js';
+
+﻿import ContactMessage from '../models/ContactMessage.js';
 
 const sendEmailNotification = async (payload) => {
   const { name, email, message } = payload;

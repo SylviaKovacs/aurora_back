@@ -1,3 +1,4 @@
+
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
@@ -49,6 +50,7 @@ const findOrCreateOAuthUser = async ({ provider, providerId, name, email }) => {
   });
 };
 
+// Export: configurePassport
 export const configurePassport = () => {
   const required = [
     'GOOGLE_CLIENT_ID',
@@ -135,6 +137,7 @@ export const configurePassport = () => {
   oauthConfigured = true;
 };
 
+// Export: isOAuthConfigured
 export const isOAuthConfigured = () => oauthConfigured;
 
 export default passport;

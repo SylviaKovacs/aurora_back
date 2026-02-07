@@ -1,3 +1,4 @@
+
 import express from 'express';
 import auth from '../middleware/auth.js';
 import isAdmin from '../middleware/isAdmin.js';
@@ -5,6 +6,8 @@ import {
   subscribe,
   getSubscribers,
   deleteSubscriber,
+  unsubscribe,
+  importSubscribers,
   sendNewsletter,
   getCampaigns
 } from '../controllers/newsletterController.js';
@@ -12,8 +15,10 @@ import {
 const router = express.Router();
 
 router.post('/', subscribe);
+router.get('/unsubscribe', unsubscribe);
 router.get('/subscribers', auth, isAdmin, getSubscribers);
 router.delete('/subscribers/:id', auth, isAdmin, deleteSubscriber);
+router.post('/subscribers/import', auth, isAdmin, importSubscribers);
 router.get('/campaigns', auth, isAdmin, getCampaigns);
 router.post('/send', auth, isAdmin, sendNewsletter);
 

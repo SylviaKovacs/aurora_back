@@ -1,4 +1,7 @@
+
+import jwt from 'jsonwebtoken';
 import Appointment from '../models/Appointment.js';
+import { notifyPaymentStarted, notifyPaymentSucceeded, notifyPaymentFailed } from '../utils/notifications.js';
 
 const BARION_BASE = process.env.BARION_BASE_URL || 'https://api.test.barion.com';
 const BARION_GATEWAY = process.env.BARION_GATEWAY_URL || 'https://test.barion.com/Pay';
@@ -10,6 +13,31 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const normalizeAmount = (value) => {
   const amount = Number(value);
   return Number.isFinite(amount) ? Math.round(amount) : 0;
+};
+
+const extractPaymentToken = (req) => {
+  return (
+    req.headers['x-payment-token'] ||
+    req.body?.paymentToken ||
+    req.query?.token ||
+    null
+  );
+};
+
+const requirePaymentToken = (req, appointmentId) => {
+  const token = extractPaymentToken(req);
+  if (!token) {
+    return { ok: false, error: 'Hiányzó fizetési token' };
+  }
+  try {
+    const payload = jwt.verify(String(token), process.env.JWT_SECRET);
+    if (!payload || Number(payload.appointmentId) !== Number(appointmentId)) {
+      return { ok: false, error: 'Érvénytelen fizetési token' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Érvénytelen vagy lejárt fizetési token' };
+  }
 };
 
 const buildPaymentAmount = (appointment) => {
@@ -33,8 +61,13 @@ const fetchBarionState = async (paymentId) => {
 export const startBarionPayment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
-    if (!appointmentId) {
+    if (!appointmentId || !Number.isFinite(Number(appointmentId))) {
       return res.status(400).json({ error: 'Idopont azonosito kotelezo' });
+    }
+
+    const tokenCheck = requirePaymentToken(req, appointmentId);
+    if (!tokenCheck.ok) {
+      return res.status(403).json({ error: tokenCheck.error });
     }
 
     const appointment = await Appointment.findByPk(appointmentId);
@@ -58,6 +91,7 @@ export const startBarionPayment = async (req, res) => {
     const paymentRequestId = `APPT-${appointment.id}-${Date.now()}`;
     const transactionId = `TX-${appointment.id}-${Date.now()}`;
 
+    const paymentToken = extractPaymentToken(req);
     const payload = {
       POSKey: BARION_POS_KEY,
       PaymentType: 'Immediate',
@@ -66,7 +100,7 @@ export const startBarionPayment = async (req, res) => {
       FundingSources: ['All'],
       Locale: 'hu-HU',
       Currency: 'HUF',
-      RedirectUrl: `${FRONTEND_URL}/main/payment-result?appointmentId=${appointment.id}`,
+      RedirectUrl: `${FRONTEND_URL}/main/payment-result?appointmentId=${appointment.id}&token=${encodeURIComponent(paymentToken || '')}`,
       CallbackUrl: `${BACKEND_URL}/api/payments/barion/callback`,
       Transactions: [
         {
@@ -105,6 +139,8 @@ export const startBarionPayment = async (req, res) => {
       barionPaymentRequestId: data.PaymentRequestId || paymentRequestId
     });
 
+    await notifyPaymentStarted(appointment, amount);
+
     const redirectUrl = `${BARION_GATEWAY}?Id=${data.PaymentId}`;
     res.json({ paymentId: data.PaymentId, redirectUrl });
   } catch (error) {
@@ -132,6 +168,7 @@ export const barionCallback = async (req, res) => {
     const status = state.data?.Status || 'Unknown';
     let paymentStatus = 'pending';
 
+    const prevStatus = appointment.paymentStatus;
     if (status === 'Succeeded') {
       paymentStatus = 'paid';
       const paidAmount = buildPaymentAmount(appointment);
@@ -139,9 +176,16 @@ export const barionCallback = async (req, res) => {
         paymentStatus,
         paidAmount
       });
+      if (prevStatus !== 'paid') {
+        await notifyPaymentSucceeded(appointment, paidAmount);
+      }
     } else if (status === 'Failed') {
       paymentStatus = 'failed';
       await appointment.update({ paymentStatus });
+      if (prevStatus !== 'failed') {
+        const amount = buildPaymentAmount(appointment);
+        await notifyPaymentFailed(appointment, amount);
+      }
     } else {
       await appointment.update({ paymentStatus: 'pending' });
     }
@@ -155,6 +199,13 @@ export const barionCallback = async (req, res) => {
 export const barionStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || !Number.isFinite(Number(id))) {
+      return res.status(400).json({ error: 'Ervenytelen idopont azonosito' });
+    }
+    const tokenCheck = requirePaymentToken(req, id);
+    if (!tokenCheck.ok) {
+      return res.status(403).json({ error: tokenCheck.error });
+    }
     const appointment = await Appointment.findByPk(id);
     if (!appointment) {
       return res.status(404).json({ error: 'Idopont nem talalhato' });
@@ -172,13 +223,21 @@ export const barionStatus = async (req, res) => {
     const status = state.data?.Status || 'Unknown';
     let paymentStatus = 'pending';
 
+    const prevStatus = appointment.paymentStatus;
     if (status === 'Succeeded') {
       paymentStatus = 'paid';
       const paidAmount = buildPaymentAmount(appointment);
       await appointment.update({ paymentStatus, paidAmount });
+      if (prevStatus !== 'paid') {
+        await notifyPaymentSucceeded(appointment, paidAmount);
+      }
     } else if (status === 'Failed') {
       paymentStatus = 'failed';
       await appointment.update({ paymentStatus });
+      if (prevStatus !== 'failed') {
+        const amount = buildPaymentAmount(appointment);
+        await notifyPaymentFailed(appointment, amount);
+      }
     } else {
       await appointment.update({ paymentStatus: 'pending' });
     }

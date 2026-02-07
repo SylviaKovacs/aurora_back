@@ -1,3 +1,4 @@
+
 import nodemailer from 'nodemailer';
 
 const smtpHost = process.env.SMTP_HOST;
@@ -27,33 +28,64 @@ const getTransporter = () => {
 
 const baseText = (a) => {
   return [
-    `Nev: ${a.name}`,
-    `Szolgaltatas: ${a.serviceLabel}`,
+    `Név: ${a.name}`,
+    `Szolgáltatás: ${a.serviceLabel}`,
     `Szakember: ${a.staffName || 'Nincs megadva'}`,
-    `Datum: ${a.date}`,
-    `Ido: ${a.time}`,
-    `Ar: ${a.price || 0} Ft`
+    `Dátum: ${a.date}`,
+    `Idő: ${a.time}`,
+    `Ár: ${a.price || 0} Ft`
   ].join('\n');
 };
 
 const templates = {
   created: (a) => ({
-    subject: 'Idopont foglalas visszaigazolas',
-    text: `Sikeres idopontfoglalas.\n\n${baseText(a)}`,
-    html: `<p>Sikeres idopontfoglalas.</p><pre>${baseText(a)}</pre>`
+    subject: 'Időpontfoglalás visszaigazolás',
+    text: `Sikeres időpontfoglalás.\n\n${baseText(a)}`,
+    html: `<p>Sikeres időpontfoglalás.</p><pre>${baseText(a)}</pre>`
   }),
   updated: (a) => ({
-    subject: 'Idopont modositas',
-    text: `Az idopontod modosult.\n\n${baseText(a)}`,
-    html: `<p>Az idopontod modosult.</p><pre>${baseText(a)}</pre>`
+    subject: 'Időpont módosítás',
+    text: `Az időpontod módosult.\n\n${baseText(a)}`,
+    html: `<p>Az időpontod módosult.</p><pre>${baseText(a)}</pre>`
   }),
   status: (a) => ({
-    subject: 'Idopont statusz frissites',
-    text: `Az idopont statusza: ${a.status}\n\n${baseText(a)}`,
-    html: `<p>Az idopont statusza: <strong>${a.status}</strong></p><pre>${baseText(a)}</pre>`
+    subject: 'Időpont státusz frissítés',
+    text: `Az időpont státusza: ${a.status}\n\n${baseText(a)}`,
+    html: `<p>Az időpont státusza: <strong>${a.status}</strong></p><pre>${baseText(a)}</pre>`
+  }),
+  cancelled: (a) => ({
+    subject: 'Időpont lemondva',
+    text: `Az időpontod lemondásra került.\n\n${baseText(a)}`,
+    html: `<p>Az időpontod lemondásra került.</p><pre>${baseText(a)}</pre>`
+  }),
+  paymentStarted: (a, amount) => ({
+    subject: 'Fizetés indult',
+    text: `A fizetés elindult. Fizetendő összeg: ${amount} Ft.\n\n${baseText(a)}`,
+    html: `<p>A fizetés elindult. Fizetendő összeg: <strong>${amount} Ft</strong>.</p><pre>${baseText(a)}</pre>`
+  }),
+  paymentSucceeded: (a, amount) => ({
+    subject: 'Fizetés sikeres',
+    text: `A fizetés sikeres. Összeg: ${amount} Ft.\n\n${baseText(a)}`,
+    html: `<p>A fizetés sikeres. Összeg: <strong>${amount} Ft</strong>.</p><pre>${baseText(a)}</pre>`
+  }),
+  paymentFailed: (a, amount) => ({
+    subject: 'Fizetés sikertelen',
+    text: `A fizetés sikertelen. Összeg: ${amount} Ft.\n\n${baseText(a)}`,
+    html: `<p>A fizetés sikertelen. Összeg: <strong>${amount} Ft</strong>.</p><pre>${baseText(a)}</pre>`
+  }),
+  couponRedeemed: (a, coupon) => ({
+    subject: 'Kupon felhasználva',
+    text: `Kupon felhasználva: ${coupon.code}. Kedvezmény: ${coupon.discount} Ft.\nVégösszeg: ${coupon.finalPrice} Ft.\n\n${baseText(a)}`,
+    html: `<p>Kupon felhasználva: <strong>${coupon.code}</strong></p><p>Kedvezmény: <strong>${coupon.discount} Ft</strong><br>Végösszeg: <strong>${coupon.finalPrice} Ft</strong></p><pre>${baseText(a)}</pre>`
+  }),
+  reminder: (a) => ({
+    subject: 'Időpont emlékeztető',
+    text: `Holnap időpontod van.\n\n${baseText(a)}`,
+    html: `<p>Holnap időpontod van.</p><pre>${baseText(a)}</pre>`
   })
 };
 
+// Export: sendEmail
 export const sendEmail = async (to, subject, text, html) => {
   const mailer = getTransporter();
   if (!mailer) return;
@@ -70,6 +102,16 @@ export const sendEmail = async (to, subject, text, html) => {
   }
 };
 
+const sendToUserAndAdmin = async (to, subject, text, html) => {
+  if (to) {
+    await sendEmail(to, subject, text, html);
+  }
+  if (adminNotifyEmail) {
+    await sendEmail(adminNotifyEmail, `[ADMIN] ${subject}`, text, html);
+  }
+};
+
+// Export: sendSms
 export const sendSms = async (to, message) => {
   if (!smsWebhookUrl) return;
   try {
@@ -83,41 +125,65 @@ export const sendSms = async (to, message) => {
   }
 };
 
+// Export: notifyAppointmentCreated
 export const notifyAppointmentCreated = async (appointment) => {
   const t = templates.created(appointment);
-  if (appointment.email) {
-    await sendEmail(appointment.email, t.subject, t.text, t.html);
-  }
-  if (adminNotifyEmail) {
-    await sendEmail(adminNotifyEmail, `[ADMIN] ${t.subject}`, t.text, t.html);
-  }
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
   if (appointment.phone) {
     await sendSms(appointment.phone, `${t.subject} - ${appointment.date} ${appointment.time}`);
   }
 };
 
+// Export: notifyAppointmentUpdated
 export const notifyAppointmentUpdated = async (appointment) => {
   const t = templates.updated(appointment);
-  if (appointment.email) {
-    await sendEmail(appointment.email, t.subject, t.text, t.html);
-  }
-  if (adminNotifyEmail) {
-    await sendEmail(adminNotifyEmail, `[ADMIN] ${t.subject}`, t.text, t.html);
-  }
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
   if (appointment.phone) {
     await sendSms(appointment.phone, `${t.subject} - ${appointment.date} ${appointment.time}`);
   }
 };
 
+// Export: notifyAppointmentStatus
 export const notifyAppointmentStatus = async (appointment) => {
   const t = templates.status(appointment);
-  if (appointment.email) {
-    await sendEmail(appointment.email, t.subject, t.text, t.html);
-  }
-  if (adminNotifyEmail) {
-    await sendEmail(adminNotifyEmail, `[ADMIN] ${t.subject}`, t.text, t.html);
-  }
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
   if (appointment.phone) {
     await sendSms(appointment.phone, `Statusz: ${appointment.status} - ${appointment.date} ${appointment.time}`);
   }
+};
+
+// Export: notifyAppointmentCancelled
+export const notifyAppointmentCancelled = async (appointment) => {
+  const t = templates.cancelled(appointment);
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
+};
+
+// Export: notifyPaymentStarted
+export const notifyPaymentStarted = async (appointment, amount) => {
+  const t = templates.paymentStarted(appointment, amount);
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
+};
+
+// Export: notifyPaymentSucceeded
+export const notifyPaymentSucceeded = async (appointment, amount) => {
+  const t = templates.paymentSucceeded(appointment, amount);
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
+};
+
+// Export: notifyPaymentFailed
+export const notifyPaymentFailed = async (appointment, amount) => {
+  const t = templates.paymentFailed(appointment, amount);
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
+};
+
+// Export: notifyCouponRedeemed
+export const notifyCouponRedeemed = async (appointment, coupon) => {
+  const t = templates.couponRedeemed(appointment, coupon);
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
+};
+
+// Export: notifyAppointmentReminder
+export const notifyAppointmentReminder = async (appointment) => {
+  const t = templates.reminder(appointment);
+  await sendToUserAndAdmin(appointment.email, t.subject, t.text, t.html);
 };

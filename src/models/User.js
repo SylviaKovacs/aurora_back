@@ -1,3 +1,4 @@
+
 import { DataTypes } from 'sequelize';
 import bcrypt from 'bcrypt';
 import sequelize from '../config/db.js';
@@ -57,6 +58,34 @@ const User = sequelize.define('User', {
   active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  blacklisted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  blacklistReason: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  blacklistedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  refreshTokenHash: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  refreshTokenExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  resetPasswordTokenHash: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  resetPasswordExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 
 }, {

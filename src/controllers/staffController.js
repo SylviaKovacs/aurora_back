@@ -1,3 +1,4 @@
+
 import Staff from '../models/Staff.js';
 import User from '../models/User.js';
 
@@ -15,9 +16,21 @@ export const getAllStaff = async (req, res) => {
   }
 };
 
+export const getPublicStaff = async (req, res) => {
+  try {
+    const staff = await Staff.findAll({
+      where: { active: true },
+      attributes: ['id', 'name', 'role', 'services', 'image', 'active']
+    });
+    res.json(staff);
+  } catch (error) {
+    res.status(500).json({ error: 'Szakemberek lekérése sikertelen' });
+  }
+};
+
 export const createStaff = async (req, res) => {
   try {
-    const { name, role, services, image, userId, userEmail } = req.body;
+    const { name, role, services, image, userId, userEmail, userRole } = req.body;
 
     let resolvedUserId = userId ?? null;
     if (!resolvedUserId && userEmail) {
@@ -37,7 +50,8 @@ export const createStaff = async (req, res) => {
     });
 
     if (resolvedUserId) {
-      await User.update({ role: 'staff' }, { where: { id: resolvedUserId } });
+      const nextRole = userRole || 'staff';
+      await User.update({ role: nextRole }, { where: { id: resolvedUserId } });
     }
 
     res.status(201).json(staff);
@@ -51,7 +65,7 @@ export const updateStaff = async (req, res) => {
     const staff = await Staff.findByPk(req.params.id);
     if (!staff) return res.status(404).json({ error: 'Szakember nem található' });
 
-    const { userId, userEmail, ...rest } = req.body;
+    const { userId, userEmail, userRole, ...rest } = req.body;
 
     let resolvedUserId = userId;
     if (!resolvedUserId && userEmail) {
@@ -65,7 +79,8 @@ export const updateStaff = async (req, res) => {
     await staff.update({ ...rest, userId: resolvedUserId ?? staff.userId });
 
     if (resolvedUserId) {
-      await User.update({ role: 'staff' }, { where: { id: resolvedUserId } });
+      const nextRole = userRole || 'staff';
+      await User.update({ role: nextRole }, { where: { id: resolvedUserId } });
     }
     res.json(staff);
   } catch (error) {

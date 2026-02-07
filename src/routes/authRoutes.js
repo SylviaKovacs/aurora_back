@@ -1,6 +1,7 @@
-import express from 'express';
+
+﻿import express from 'express';
 import passport, { isOAuthConfigured } from '../config/passport.js';
-import { register, login, oauthSuccess, oauthFailed } from '../controllers/authController.js';
+import { register, login, refreshToken, forgotPassword, resetPassword, oauthSuccess, oauthFailed } from '../controllers/authController.js';
 
 const router = express.Router();
 const requireOAuth = (req, res, next) => {
@@ -12,6 +13,9 @@ const requireOAuth = (req, res, next) => {
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/refresh', refreshToken);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 router.get('/oauth-failed', oauthFailed);
 
 router.get('/google', requireOAuth, passport.authenticate('google', { scope: ['profile', 'email'] }));

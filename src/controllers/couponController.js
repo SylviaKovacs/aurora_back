@@ -1,3 +1,4 @@
+
 import Coupon from '../models/Coupon.js';
 import { Op } from 'sequelize';
 

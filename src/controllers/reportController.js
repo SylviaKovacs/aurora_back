@@ -1,3 +1,4 @@
+
 import Appointment from '../models/Appointment.js';
 import { Op } from 'sequelize';
 
@@ -5,6 +6,34 @@ const parseDate = (dateStr) => {
   if (!dateStr) return null;
   const date = new Date(`${dateStr}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeAmount = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const cleaned = value
+    .toString()
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\s+/g, '')
+    .replace(',', '.');
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const computeRevenue = (a) => {
+  const status = (a.status || 'pending').toLowerCase();
+  if (status === 'cancelled') return 0;
+  const price = normalizeAmount(a.finalPrice) ?? normalizeAmount(a.price) ?? 0;
+  const paid = normalizeAmount(a.paidAmount);
+  const deposit = normalizeAmount(a.depositAmount);
+  if (Number.isFinite(paid) && paid > 0) return paid;
+  if (Number.isFinite(deposit) && deposit > 0) return deposit;
+  const method = (a.paymentMethod || 'onsite').toLowerCase();
+  if (method === 'onsite' && (status === 'confirmed' || status === 'completed')) {
+    return price;
+  }
+  return 0;
 };
 
 export const getRevenueReport = async (req, res) => {
@@ -53,10 +82,7 @@ export const getRevenueReport = async (req, res) => {
     const futureByDate = new Map();
 
     appointments.forEach((a) => {
-      const price = Number(a.finalPrice) || Number(a.price) || 0;
-      const paid = Number(a.paidAmount);
-      const deposit = Number(a.depositAmount);
-      const revenueBase = Number.isFinite(paid) ? paid : (Number.isFinite(deposit) ? deposit : price);
+      const revenueBase = computeRevenue(a);
       const status = a.status || 'pending';
       const isCancelled = status === 'cancelled';
       const date = parseDate(a.date);
@@ -89,10 +115,10 @@ export const getRevenueReport = async (req, res) => {
     const appointmentRevenue = appointments.map((a) => {
       const status = a.status || 'pending';
       const isCancelled = status === 'cancelled';
-      const price = Number(a.finalPrice) || Number(a.price) || 0;
-      const paid = Number(a.paidAmount);
-      const deposit = Number(a.depositAmount);
-      const revenue = Number.isFinite(paid) ? paid : (Number.isFinite(deposit) ? deposit : price);
+      const price = normalizeAmount(a.finalPrice) ?? normalizeAmount(a.price) ?? 0;
+      const paid = normalizeAmount(a.paidAmount);
+      const deposit = normalizeAmount(a.depositAmount);
+      const revenue = computeRevenue(a);
       return {
         id: a.id,
         date: a.date,
@@ -103,7 +129,7 @@ export const getRevenueReport = async (req, res) => {
         status,
         price,
         couponCode: a.couponCode || null,
-        discountAmount: Number.isFinite(Number(a.discountAmount)) ? Number(a.discountAmount) : null,
+        discountAmount: Number.isFinite(normalizeAmount(a.discountAmount)) ? normalizeAmount(a.discountAmount) : null,
         depositAmount: Number.isFinite(deposit) ? deposit : null,
         paidAmount: Number.isFinite(paid) ? paid : null,
         paymentMethod: a.paymentMethod || null,
