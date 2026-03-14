@@ -10,9 +10,10 @@ const adminNotifyEmail = process.env.ADMIN_NOTIFY_EMAIL;
 const smsWebhookUrl = process.env.SMS_WEBHOOK_URL;
 
 let transporter = null;
+export const isEmailConfigured = () => Boolean(smtpHost && smtpUser && smtpPass);
 
 const getTransporter = () => {
-  if (!smtpHost || !smtpUser || !smtpPass) return null;
+  if (!isEmailConfigured()) return null;
   if (transporter) return transporter;
   transporter = nodemailer.createTransport({
     host: smtpHost,
@@ -88,7 +89,9 @@ const templates = {
 // Export: sendEmail
 export const sendEmail = async (to, subject, text, html) => {
   const mailer = getTransporter();
-  if (!mailer) return;
+  if (!mailer) {
+    return { ok: false, reason: 'smtp_not_configured' };
+  }
   try {
     await mailer.sendMail({
       from: smtpFrom,
@@ -97,8 +100,10 @@ export const sendEmail = async (to, subject, text, html) => {
       text,
       html
     });
-  } catch {
-    // no-op
+    return { ok: true };
+  } catch (error) {
+    console.error('Email kuldes sikertelen:', error?.message || error);
+    return { ok: false, reason: error?.message || 'smtp_send_failed' };
   }
 };
 

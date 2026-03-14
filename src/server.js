@@ -22,6 +22,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import passport, { configurePassport } from './config/passport.js';
 import { startReminderScheduler } from './utils/reminders.js';
+import NewsletterSubscribe from './models/NewsletterSubscribe.js';
 import './models/User.js';
 import './models/Staff.js';
 import './models/ContactMessage.js';
@@ -49,11 +50,23 @@ if (isProd) {
   console.warn('Figyelem: SESSION_SECRET nincs beállítva (dev mód), JWT_SECRET lesz használva.');
 }
 
-const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
+const configuredOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
-const allowAllOrigins = !isProd && allowedOrigins.length === 0;
+
+const devDefaultOrigins = [
+  'http://localhost:4200',
+  'http://127.0.0.1:4200',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+
+const allowedOrigins = isProd
+  ? configuredOrigins
+  : Array.from(new Set([...configuredOrigins, ...devDefaultOrigins]));
+
+const allowAllOrigins = !isProd && configuredOrigins.length === 0;
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -173,9 +186,27 @@ const ensureUserColumns = async () => {
   }
 };
 
+const ensureNewsletterSubscribeColumns = async () => {
+  const qi = sequelize.getQueryInterface();
+  const tableName = NewsletterSubscribe.getTableName();
+
+  try {
+    const table = await qi.describeTable(tableName);
+    if (!table.userId) {
+      await qi.addColumn(tableName, 'userId', {
+        type: DataTypes.INTEGER,
+        allowNull: true
+      });
+    }
+  } catch (err) {
+    console.error('NewsletterSubscribe oszlopok ellenorzese sikertelen:', err);
+  }
+};
+
 sequelize.sync()
   .then(async () => {
     await ensureUserColumns();
+    await ensureNewsletterSubscribeColumns();
     console.log('Adatbázis szinkronizálva');
     startReminderScheduler();
     app.listen(PORT, () => {

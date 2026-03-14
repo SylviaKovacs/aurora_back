@@ -585,9 +585,6 @@ export const updateAppointment = async (req, res) => {
     }
 
     if (date && time) {
-      if (isPastDateTime(date, time)) {
-        return res.status(400).json({ error: 'Multbeli idopontra nem lehet foglalni' });
-      }
       if (!isWithinOpeningAndBreaks(date, time, appointment.durationMinutes)) {
         return res.status(400).json({ error: 'Az idopont a nyitvatartason kivul vagy szunetben van' });
       }

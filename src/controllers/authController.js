@@ -1,8 +1,9 @@
-
+﻿
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/User.js';
+import NewsletterSubscribe from '../models/NewsletterSubscribe.js';
 import { sendEmail } from '../utils/notifications.js';
 
 const getFrontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:4200';
@@ -40,7 +41,7 @@ export const register = async (req, res) => {
     const { name, email, password, confirmPassword, newsletter } = req.body;
 
     if (!name || !email || !password || !confirmPassword) {
-      return res.status(400).json({ error: 'Minden mező kötelező' });
+      return res.status(400).json({ error: 'Minden mezĹ‘ kĂ¶telezĹ‘' });
     }
 
     if (password !== confirmPassword) {
@@ -49,7 +50,7 @@ export const register = async (req, res) => {
 
     const existing = await User.findOne({ where: { email } });
     if (existing) {
-      return res.status(400).json({ error: 'Ez az email már regisztrálva van' });
+      return res.status(400).json({ error: 'Ez az email mĂˇr regisztrĂˇlva van' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -60,13 +61,22 @@ export const register = async (req, res) => {
       password: hashedPassword,
       newsletter
     });
-
+
+    if (newsletter === true) {
+      const normalizedEmail = String(user.email || '').trim().toLowerCase();
+      if (normalizedEmail) {
+        const existingSub = await NewsletterSubscribe.findOne({ where: { email: normalizedEmail } });
+        if (!existingSub) {
+          await NewsletterSubscribe.create({ email: normalizedEmail, userId: user.id });
+        }
+      }
+    }
     const sanitized = user.toJSON();
     delete sanitized.password;
 
-    const subject = 'Sikeres regisztráció';
-    const text = `Szia ${user.name}!\n\nSikeres regisztráció az Aurora Beauty rendszerében.`;
-    const html = `<p>Szia <strong>${user.name}</strong>!</p><p>Sikeres regisztráció az Aurora Beauty rendszerében.</p>`;
+    const subject = 'Sikeres regisztrĂˇciĂł';
+    const text = `Szia ${user.name}!\n\nSikeres regisztrĂˇciĂł az Aurora Beauty rendszerĂ©ben.`;
+    const html = `<p>Szia <strong>${user.name}</strong>!</p><p>Sikeres regisztrĂˇciĂł az Aurora Beauty rendszerĂ©ben.</p>`;
     sendEmail(user.email, subject, text, html).catch(() => {});
 
     return res.status(201).json({
@@ -80,8 +90,8 @@ export const register = async (req, res) => {
 
 
   } catch (error) {
-    console.error('Regisztrációs hiba:', error);
-    return res.status(500).json({ error: 'Regisztráció sikertelen' });
+    console.error('RegisztrĂˇciĂłs hiba:', error);
+    return res.status(500).json({ error: 'RegisztrĂˇciĂł sikertelen' });
   }
 };
 
@@ -90,26 +100,26 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email és jelszó kötelező' });
+      return res.status(400).json({ error: 'Email Ă©s jelszĂł kĂ¶telezĹ‘' });
     }
 
     const user = await User.scope('withPassword').findOne({ where: { email } });
 
     if (!user) {
-      return res.status(404).json({ error: 'Felhasználó nem található' });
+      return res.status(404).json({ error: 'FelhasznĂˇlĂł nem talĂˇlhatĂł' });
     }
 
     if (user.active === false) {
-      return res.status(403).json({ error: 'A felhasználó archiválva van' });
+      return res.status(403).json({ error: 'A felhasznĂˇlĂł archivĂˇlva van' });
     }
 
     if (!user.password) {
-      return res.status(401).json({ error: 'Ehhez az emailhez social bejelentkezés tartozik' });
+      return res.status(401).json({ error: 'Ehhez az emailhez social bejelentkezĂ©s tartozik' });
     }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      return res.status(401).json({ error: 'Hibás jelszó' });
+      return res.status(401).json({ error: 'HibĂˇs jelszĂł' });
     }
 
     const { token, refreshToken } = await issueTokens(user);
@@ -126,8 +136,8 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Bejelentkezési hiba:', error);
-    return res.status(500).json({ error: 'Bejelentkezés sikertelen' });
+    console.error('BejelentkezĂ©si hiba:', error);
+    return res.status(500).json({ error: 'BejelentkezĂ©s sikertelen' });
   }
 };
 
@@ -156,36 +166,36 @@ export const refreshToken = async (req, res) => {
   try {
     const { refreshToken: token } = req.body || {};
     if (!token) {
-      return res.status(400).json({ error: 'Hiányzó refresh token' });
+      return res.status(400).json({ error: 'HiĂˇnyzĂł refresh token' });
     }
 
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
     } catch {
-      return res.status(401).json({ error: 'Érvénytelen vagy lejárt refresh token' });
+      return res.status(401).json({ error: 'Ă‰rvĂ©nytelen vagy lejĂˇrt refresh token' });
     }
 
     if (!payload || payload.type !== 'refresh') {
-      return res.status(401).json({ error: 'Érvénytelen refresh token' });
+      return res.status(401).json({ error: 'Ă‰rvĂ©nytelen refresh token' });
     }
 
     const user = await User.findByPk(payload.id);
     if (!user) {
-      return res.status(404).json({ error: 'Felhasználó nem található' });
+      return res.status(404).json({ error: 'FelhasznĂˇlĂł nem talĂˇlhatĂł' });
     }
     if (user.active === false) {
-      return res.status(403).json({ error: 'A felhasználó archiválva van' });
+      return res.status(403).json({ error: 'A felhasznĂˇlĂł archivĂˇlva van' });
     }
     if (user.blacklisted === true) {
-      return res.status(403).json({ error: 'A felhasználó feketelistán van' });
+      return res.status(403).json({ error: 'A felhasznĂˇlĂł feketelistĂˇn van' });
     }
 
     if (!user.refreshTokenHash || user.refreshTokenHash !== hashToken(token)) {
       return res.status(401).json({ error: 'Refresh token nem egyezik' });
     }
     if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt < new Date()) {
-      return res.status(401).json({ error: 'Refresh token lejárt' });
+      return res.status(401).json({ error: 'Refresh token lejĂˇrt' });
     }
 
     const tokens = await issueTokens(user);
@@ -208,12 +218,12 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) {
-      return res.status(400).json({ error: 'Email kötelező' });
+      return res.status(400).json({ error: 'Email k\u00f6telez\u0151' });
     }
 
     const user = await User.findOne({ where: { email } });
     if (!user || user.active === false || user.blacklisted === true) {
-      return res.json({ message: 'Ha létezik a fiók, elküldtük a reset linket.' });
+      return res.json({ message: 'Ha l\u00e9tezik a fi\u00f3k, elk\u00fcldt\u00fck a reset linket.' });
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -225,14 +235,14 @@ export const forgotPassword = async (req, res) => {
 
     const frontend = process.env.FRONTEND_URL || 'http://localhost:4200';
     const resetUrl = `${frontend}/main/reset-password?token=${token}`;
-    const subject = 'Jelszó visszaállítás';
-    const text = `Kattints a linkre a jelszó visszaállításához:\n${resetUrl}\n\nA link ${resetExpiresMinutes} percig érvényes.`;
-    const html = `<p>Kattints a linkre a jelszó visszaállításához:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>A link ${resetExpiresMinutes} percig érvényes.</p>`;
+    const subject = 'Jelsz\u00f3 vissza\u00e1ll\u00edt\u00e1s';
+    const text = `Kattints a linkre a jelsz\u00f3 vissza\u00e1ll\u00edt\u00e1s\u00e1hoz:\n${resetUrl}\n\nA link ${resetExpiresMinutes} percig \u00e9rv\u00e9nyes.`;
+    const html = `<p>Kattints a linkre a jelsz\u00f3 vissza\u00e1ll\u00edt\u00e1s\u00e1hoz:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>A link ${resetExpiresMinutes} percig \u00e9rv\u00e9nyes.</p>`;
     await sendEmail(user.email, subject, text, html);
 
-    return res.json({ message: 'Ha létezik a fiók, elküldtük a reset linket.' });
+    return res.json({ message: 'Ha l\u00e9tezik a fi\u00f3k, elk\u00fcldt\u00fck a reset linket.' });
   } catch (error) {
-    return res.status(500).json({ error: 'Jelszó reset kérés sikertelen' });
+    return res.status(500).json({ error: 'Jelsz\u00f3 reset k\u00e9r\u00e9s sikertelen' });
   }
 };
 
@@ -240,13 +250,13 @@ export const resetPassword = async (req, res) => {
   try {
     const { token, password, confirmPassword } = req.body || {};
     if (!token || !password || !confirmPassword) {
-      return res.status(400).json({ error: 'Minden mező kötelező' });
+      return res.status(400).json({ error: 'Minden mez\u0151 k\u00f6telez\u0151' });
     }
     if (password !== confirmPassword) {
       return res.status(400).json({ error: 'A jelszavak nem egyeznek' });
     }
     if (String(password).length < 8) {
-      return res.status(400).json({ error: 'A jelszó minimum 8 karakter' });
+      return res.status(400).json({ error: 'A jelsz\u00f3 minimum 8 karakter' });
     }
 
     const tokenHash = hashToken(token);
@@ -254,13 +264,13 @@ export const resetPassword = async (req, res) => {
       where: { resetPasswordTokenHash: tokenHash }
     });
     if (!user || !user.resetPasswordExpiresAt || user.resetPasswordExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Érvénytelen vagy lejárt token' });
+      return res.status(400).json({ error: '\u00c9rv\u00e9nytelen vagy lej\u00e1rt token' });
     }
     if (user.active === false) {
-      return res.status(403).json({ error: 'A felhasználó archiválva van' });
+      return res.status(403).json({ error: 'A felhaszn\u00e1l\u00f3 archiv\u00e1lva van' });
     }
     if (user.blacklisted === true) {
-      return res.status(403).json({ error: 'A felhasználó feketelistán van' });
+      return res.status(403).json({ error: 'A felhaszn\u00e1l\u00f3 feketelist\u00e1n van' });
     }
 
     user.password = password;
@@ -270,9 +280,10 @@ export const resetPassword = async (req, res) => {
     user.refreshTokenExpiresAt = null;
     await user.save();
 
-    return res.json({ message: 'Jelszó sikeresen frissítve' });
+    return res.json({ message: 'Jelsz\u00f3 sikeresen friss\u00edtve' });
   } catch (error) {
-    return res.status(500).json({ error: 'Jelszó visszaállítás sikertelen' });
+    return res.status(500).json({ error: 'Jelsz\u00f3 vissza\u00e1ll\u00edt\u00e1s sikertelen' });
   }
 };
+
 
